@@ -12,8 +12,7 @@
 1. bird_game.py : the game environment file made using the library "pygame"
 2. bird_agent.py : contains game-proceeding-part. So-called, agent file.
 3. DDDQN.py : 
-\
-\
+
 - How to run the program/file? / How to use it?
 1. Open 'bird_agent.py' and scroll down to '#Execute' section.
 2. Type 'train' or 'replay' next to "train_replay_option =".
