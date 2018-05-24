@@ -116,6 +116,9 @@ class DQN:
     def _build_network(self, name):
         with tf.variable_scope(name):
 
+            # Weight initializer
+            he_init = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_AVG', uniform=False)  # 'FAN_AVG'-mode-he-init -> works better than 'FAN'
+
             # The size of the final layer before splitting it into Advantage and Value streams.
             h_size = 500
 
@@ -124,21 +127,20 @@ class DQN:
             # 시간의 경과에 따라 드롭아웃 확률을 줄여준다. -> 추정값에서 노이즈를 줄여주기 위해
             # RESULT : 확실히 눈에띄게 Learning Performance 가 상승함을 확인할 수있다.
             # Honestly speaking, I'm not sure just adding dropout is right.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(inputs=self.input_X, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
             model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(inputs=self.input_X, units=500, activation=tf.nn.relu)
-            model = tf.layers.dropout(model, rate=0.5)  # E.g. "rate=0.1" would drop out 10% of input units.
-            model = tf.layers.dense(model, units=h_size, activation=tf.nn.relu) # NOTE "h_size" must be located at the end hidden_layer before split
+            model = tf.layers.dense(model, units=250, activation=tf.nn.relu, kernel_initializer=he_init)
+            model = tf.layers.dense(model, units=h_size, activation=tf.nn.relu, kernel_initializer=he_init) # NOTE "h_size" must be located at the end hidden_layer before split
             # This right above hidden layer is the end of DQN hidden layer. That's why there's no dropout.
 
             # From here, it's for "Duel DQN" -> Not output Q at once but split into A(advantage), V(value) and combine them to make Q
@@ -150,11 +152,11 @@ class DQN:
             streamV = slim.flatten( streamVC )
 
             # Call the class to initialize weights, which improve training performance - ref.http://hwangpy.tistory.com/153
-            xavier_init = tf.contrib.layers.xavier_initializer()
+            he_init = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_AVG', uniform=False)
 
             # Action_Weight & Value_Weight
-            AW = tf.Variable(xavier_init([h_size // 2, self.n_action]))  # xavier_init( [row_size , column_size] )
-            VW = tf.Variable(xavier_init([h_size // 2, 1]))
+            AW = tf.Variable( he_init([h_size // 2, self.n_action]) )  # xavier_init( [row_size , column_size] )
+            VW = tf.Variable( he_init([h_size // 2, 1]) )
 
             # Flattened_ones * Weights
             Advantage = tf.matmul(streamA, AW)
@@ -178,7 +180,7 @@ class DQN:
         actions_onehot = tf.one_hot(self.actions, self.n_action, dtype=tf.float32)
         Q_by_DDQN = tf.reduce_sum(tf.multiply(self.Qout, actions_onehot), axis=1)
 
-        td_error = tf.square(self.targetQ_in_loss - Q_by_DDQN)
+        td_error = 0.5*tf.square(self.targetQ_in_loss - Q_by_DDQN) # MSE
         loss = tf.reduce_mean(td_error)
 
         trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
